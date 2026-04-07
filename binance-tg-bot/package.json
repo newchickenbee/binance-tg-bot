@@ -1,0 +1,19 @@
+{
+  "name": "binance-tg-bot",
+  "version": "1.0.0",
+  "description": "Telegram Bot for Binance USDT-M Futures trading",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "npx -y tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "grammy": "^1.35.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.2",
+    "typescript": "^5.8.3"
+  }
+}
