@@ -46,6 +46,7 @@ export interface ExchangeInfo {
         filters: Array<{
             filterType: string;
             stepSize?: string;
+            notional?: string;
         }>;
     }>;
 }
@@ -67,10 +68,23 @@ export async function getExchangeInfo(): Promise<ExchangeInfo> {
 export async function calcQuantityByUSDT(symbol: string, usdtAmount: number, price?: number): Promise<number> {
     // If price is not provided, fetch current market price
     const entryPrice = price || parseFloat((await getPrice(symbol)).price);
-    const rawQuantity = usdtAmount / entryPrice;
-
+    
     const info = await getExchangeInfo();
     const symbolInfo = info.symbols.find(s => s.symbol === symbol.toUpperCase());
+    
+    if (symbolInfo) {
+        // Check MIN_NOTIONAL
+        const notionalFilter = symbolInfo.filters.find(f => f.filterType === 'MIN_NOTIONAL' || f.filterType === 'NOTIONAL');
+        if (notionalFilter && notionalFilter.notional) {
+            const minNotional = parseFloat(notionalFilter.notional);
+            if (usdtAmount < minNotional) {
+                throw new Error(`${symbol} 最小下单金额为 ${minNotional} USDT (当前输入: ${usdtAmount} USDT)`);
+            }
+        }
+    }
+
+    const rawQuantity = usdtAmount / entryPrice;
+
     if (!symbolInfo) return rawQuantity;
 
     const lotSizeFilter = symbolInfo.filters.find(f => f.filterType === 'LOT_SIZE');
