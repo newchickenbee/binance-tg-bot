@@ -40,6 +40,54 @@ export async function getFundingRate(symbol: string): Promise<{
     };
 }
 
+export interface ExchangeInfo {
+    symbols: Array<{
+        symbol: string;
+        filters: Array<{
+            filterType: string;
+            stepSize?: string;
+        }>;
+    }>;
+}
+
+let exchangeInfoCache: ExchangeInfo | null = null;
+let exchangeInfoFetchTime = 0;
+
+export async function getExchangeInfo(): Promise<ExchangeInfo> {
+    const now = Date.now();
+    if (exchangeInfoCache && now - exchangeInfoFetchTime < 60 * 60 * 1000) {
+        return exchangeInfoCache;
+    }
+    const data = await publicRequest<ExchangeInfo>('/fapi/v1/exchangeInfo');
+    exchangeInfoCache = data;
+    exchangeInfoFetchTime = now;
+    return data;
+}
+
+export async function calcQuantityByUSDT(symbol: string, usdtAmount: number, price?: number): Promise<number> {
+    // If price is not provided, fetch current market price
+    const entryPrice = price || parseFloat((await getPrice(symbol)).price);
+    const rawQuantity = usdtAmount / entryPrice;
+
+    const info = await getExchangeInfo();
+    const symbolInfo = info.symbols.find(s => s.symbol === symbol.toUpperCase());
+    if (!symbolInfo) return rawQuantity;
+
+    const lotSizeFilter = symbolInfo.filters.find(f => f.filterType === 'LOT_SIZE');
+    if (lotSizeFilter && lotSizeFilter.stepSize) {
+        const stepSize = parseFloat(lotSizeFilter.stepSize);
+        let precision = 0;
+        const stepSizeStr = lotSizeFilter.stepSize;
+        if (stepSizeStr.includes('.')) {
+            precision = stepSizeStr.split('.')[1].replace(/0+$/, '').length;
+        }
+        
+        const discrete = Math.floor(rawQuantity / stepSize) * stepSize;
+        return parseFloat(discrete.toFixed(precision));
+    }
+    return rawQuantity;
+}
+
 const openPriceCache: { date: string; prices: Record<string, number> } = {
     date: '',
     prices: {},

@@ -2,7 +2,7 @@ import { Bot, InlineKeyboard } from 'grammy';
 import { IS_TESTNET } from '../config';
 import { getAccountInfo, getPositions, setLeverage, setMarginType } from '../binance/account';
 import { placeOrder, cancelOrder, cancelAllOrders, getOpenOrders } from '../binance/order';
-import { getPrice, getFundingRate, getTopGainers } from '../binance/market';
+import { getPrice, getFundingRate, getTopGainers, calcQuantityByUSDT } from '../binance/market';
 import { formatPrice, formatUSDT, pnlEmoji, formatPct, formatTime } from '../utils/format';
 
 const NETWORK_BADGE = IS_TESTNET ? '🧪 TESTNET' : '🔴 MAINNET';
@@ -21,9 +21,9 @@ export function registerCommands(bot: Bot): void {
             '/orders — 当前挂单',
             '',
             '📈 *交易命令*',
-            '/long `BTCUSDT` `0.01` — 市价做多',
-            '/long `BTCUSDT` `0.01` `60000` — 限价做多',
-            '/short `BTCUSDT` `0.01` — 市价做空',
+            '/long `BTCUSDT` `0.01` (或 `100u`) — 市价做多',
+            '/long `BTCUSDT` `100u` `60000` — 限价做多',
+            '/short `BTCUSDT` `100u` — 市价做空',
             '/close `BTCUSDT` — 市价平仓',
             '/tp `BTCUSDT` `70000` — 设止盈',
             '/sl `BTCUSDT` `55000` — 设止损',
@@ -143,12 +143,29 @@ export function registerCommands(bot: Bot): void {
     bot.command('long', async (ctx) => {
         const args = (ctx.match || '').split(/\s+/);
         if (args.length < 2) {
-            await ctx.reply('用法: /long BTCUSDT 0.01 [限价]');
+            await ctx.reply('用法: /long BTCUSDT 0.01 [限价] 或者 /long BTCUSDT 100u [限价]');
             return;
         }
         const [symbol, qtyStr, priceStr] = args;
-        const quantity = parseFloat(qtyStr);
         const isLimit = priceStr !== undefined;
+
+        let quantity: number;
+        let displayQty: string;
+        try {
+            if (qtyStr.toLowerCase().endsWith('u')) {
+                const usdtAmount = parseFloat(qtyStr.replace(/u/i, ''));
+                const limitPrice = isLimit ? parseFloat(priceStr!) : undefined;
+                quantity = await calcQuantityByUSDT(symbol, usdtAmount, limitPrice);
+                displayQty = `${usdtAmount}U ≈ ${quantity}`;
+            } else {
+                quantity = parseFloat(qtyStr);
+                displayQty = quantity.toString();
+            }
+        } catch (err: any) {
+            await ctx.reply(`❌ 数量计算失败: ${err.message}`);
+            return;
+        }
+
         const confirmId = `confirm_long_${symbol}_${quantity}_${priceStr || 'market'}`;
 
         const keyboard = new InlineKeyboard()
@@ -157,7 +174,7 @@ export function registerCommands(bot: Bot): void {
 
         const typeLabel = isLimit ? `限价 ${formatUSDT(priceStr!)}` : '市价';
         await ctx.reply(
-            `🟢 *确认做多?*\n\n币对: ${symbol!.toUpperCase()}\n数量: ${quantity}\n类型: ${typeLabel}`,
+            `🟢 *确认做多?*\n\n币对: ${symbol!.toUpperCase()}\n数量: ${displayQty}\n类型: ${typeLabel}`,
             { parse_mode: 'Markdown', reply_markup: keyboard },
         );
     });
@@ -165,12 +182,29 @@ export function registerCommands(bot: Bot): void {
     bot.command('short', async (ctx) => {
         const args = (ctx.match || '').split(/\s+/);
         if (args.length < 2) {
-            await ctx.reply('用法: /short BTCUSDT 0.01 [限价]');
+            await ctx.reply('用法: /short BTCUSDT 0.01 [限价] 或者 /short BTCUSDT 100u [限价]');
             return;
         }
         const [symbol, qtyStr, priceStr] = args;
-        const quantity = parseFloat(qtyStr);
         const isLimit = priceStr !== undefined;
+
+        let quantity: number;
+        let displayQty: string;
+        try {
+            if (qtyStr.toLowerCase().endsWith('u')) {
+                const usdtAmount = parseFloat(qtyStr.replace(/u/i, ''));
+                const limitPrice = isLimit ? parseFloat(priceStr!) : undefined;
+                quantity = await calcQuantityByUSDT(symbol, usdtAmount, limitPrice);
+                displayQty = `${usdtAmount}U ≈ ${quantity}`;
+            } else {
+                quantity = parseFloat(qtyStr);
+                displayQty = quantity.toString();
+            }
+        } catch (err: any) {
+            await ctx.reply(`❌ 数量计算失败: ${err.message}`);
+            return;
+        }
+
         const confirmId = `confirm_short_${symbol}_${quantity}_${priceStr || 'market'}`;
 
         const keyboard = new InlineKeyboard()
@@ -179,7 +213,7 @@ export function registerCommands(bot: Bot): void {
 
         const typeLabel = isLimit ? `限价 ${formatUSDT(priceStr!)}` : '市价';
         await ctx.reply(
-            `🔴 *确认做空?*\n\n币对: ${symbol!.toUpperCase()}\n数量: ${quantity}\n类型: ${typeLabel}`,
+            `🔴 *确认做空?*\n\n币对: ${symbol!.toUpperCase()}\n数量: ${displayQty}\n类型: ${typeLabel}`,
             { parse_mode: 'Markdown', reply_markup: keyboard },
         );
     });
