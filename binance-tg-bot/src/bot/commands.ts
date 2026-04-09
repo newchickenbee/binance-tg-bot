@@ -2,7 +2,7 @@ import { Bot, InlineKeyboard } from 'grammy';
 import { IS_TESTNET } from '../config';
 import { getAccountInfo, getPositions, setLeverage, setMarginType } from '../binance/account';
 import { placeOrder, cancelOrder, cancelAllOrders, getOpenOrders } from '../binance/order';
-import { getPrice, getFundingRate, getTopGainers, calcQuantityByUSDT } from '../binance/market';
+import { getPrice, getFundingRate, getTopGainers, getTopLosers, calcQuantityByUSDT } from '../binance/market';
 import { formatPrice, formatUSDT, pnlEmoji, formatPct, formatTime } from '../utils/format';
 
 const NETWORK_BADGE = IS_TESTNET ? '🧪 TESTNET' : '🔴 MAINNET';
@@ -18,6 +18,7 @@ export function registerCommands(bot: Bot): void {
             '/price `BTCUSDT` — 查看价格',
             '/funding `BTCUSDT` — 资金费率',
             '/gainers — 涨幅前十',
+            '/losers — 跌幅前十',
             '/orders — 当前挂单',
             '',
             '📈 *交易命令*',
@@ -135,6 +136,25 @@ export function registerCommands(bot: Bot): void {
             await ctx.reply(lines.join('\n'), { parse_mode: 'Markdown' });
         } catch (err: any) {
             await ctx.reply(`❌ 获取涨幅榜失败: ${err.message}`);
+        }
+    });
+
+    bot.command('losers', async (ctx) => {
+        try {
+            const limit = 10;
+            const topLosers = await getTopLosers(limit, true);
+
+            const lines = [`📉 *今日跌幅前 ${limit} (UTC0)* (${NETWORK_BADGE})\n`];
+            for (let i = 0; i < topLosers.length; i++) {
+                const t = topLosers[i];
+                const pct = parseFloat(t.priceChangePercent);
+                const pctStr = pct >= 0 ? `+${pct.toFixed(2)}%` : `${pct.toFixed(2)}%`;
+                lines.push(`*${i + 1}.* \`${t.symbol}\`: ${formatPrice(parseFloat(t.lastPrice))} (${pctStr})`);
+            }
+
+            await ctx.reply(lines.join('\n'), { parse_mode: 'Markdown' });
+        } catch (err: any) {
+            await ctx.reply(`❌ 获取跌幅榜失败: ${err.message}`);
         }
     });
 
