@@ -3,6 +3,7 @@ import { BOT_TOKEN, IS_TESTNET } from './config';
 import { authMiddleware, errorHandler } from './bot/middleware';
 import { registerCommands } from './bot/commands';
 import { registerCallbacks } from './bot/callbacks';
+import { setupScheduler } from './bot/scheduler';
 
 const bot = new Bot(BOT_TOKEN);
 
@@ -13,6 +14,9 @@ bot.use(authMiddleware);
 // Register all command and callback handlers
 registerCommands(bot);
 registerCallbacks(bot);
+
+// Setup scheduled tasks
+setupScheduler(bot);
 
 // Start the bot
 const networkLabel = IS_TESTNET ? 'TESTNET' : 'MAINNET';
