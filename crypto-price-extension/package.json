@@ -1,0 +1,92 @@
+{
+  "name": "crypto-price-extension",
+  "displayName": "Crypto Price Monitor",
+  "description": "Real-time cryptocurrency price monitor in your status bar.",
+  "version": "0.1.0",
+  "publisher": "antigravity",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Crypto Price Monitor",
+      "properties": {
+        "cryptoPrice.symbol": {
+          "type": "string",
+          "default": "BTC-USDT",
+          "description": "The cryptocurrency symbol to track (e.g., BTC-USDT)."
+        },
+        "cryptoPrice.interval": {
+          "type": "number",
+          "default": 5,
+          "minimum": 5,
+          "description": "Update interval in seconds (minimum 5)."
+        },
+        "cryptoPrice.visible": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to show the price in the status bar."
+        },
+        "cryptoPrice.showToggleButton": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to show the toggle visibility button in the status bar."
+        },
+        "cryptoPrice.hoverSymbols": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "sh000001",
+            "sz399001",
+            "us.IXIC",
+            "us.INX",
+            "ETH-USDT",
+            "SOL-USDT",
+            "BNB-USDT",
+            "XRP-USDT",
+            "DOGE-USDT"
+          ],
+          "description": "List of cryptocurrency and stock symbols to show in the hover tooltip."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "cryptoPrice.refresh",
+        "title": "Crypto: Refresh Price",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "cryptoPrice.toggleVisibility",
+        "title": "Crypto: Toggle Visibility",
+        "icon": "$(eye)"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20",
+    "@types/vscode": "^1.90.0",
+    "eslint": "^9",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6",
+    "typescript": "^5"
+  }
+}

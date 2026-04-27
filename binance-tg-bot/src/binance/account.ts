@@ -31,11 +31,11 @@ export interface PositionInfo {
 }
 
 export async function getAccountInfo(): Promise<AccountInfo> {
-    return signedRequest<AccountInfo>('GET', '/fapi/v3/account');
+    return signedRequest<AccountInfo>('GET', '/fapi/v2/account');
 }
 
 export async function getPositions(): Promise<PositionInfo[]> {
-    const all = await signedRequest<PositionInfo[]>('GET', '/fapi/v3/positionRisk');
+    const all = await signedRequest<PositionInfo[]>('GET', '/fapi/v2/positionRisk');
     return all.filter(p => parseFloat(p.positionAmt) !== 0);
 }
 

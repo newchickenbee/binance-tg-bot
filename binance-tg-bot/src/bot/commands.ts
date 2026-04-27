@@ -1,50 +1,54 @@
-import { Bot, InlineKeyboard } from 'grammy';
+import { Bot, InlineKeyboard, Keyboard } from 'grammy';
 import { IS_TESTNET } from '../config';
 import { getAccountInfo, getPositions, setLeverage, setMarginType } from '../binance/account';
 import { placeOrder, cancelOrder, cancelAllOrders, getOpenOrders } from '../binance/order';
-import { getPrice, getFundingRate, getTopGainers, getTopLosers, calcQuantityByUSDT } from '../binance/market';
+import { getPrice, getFundingRate, getTopGainers, getTopLosers, getTopAmplitude, calcQuantityByUSDT } from '../binance/market';
 import { formatPrice, formatUSDT, pnlEmoji, formatPct, formatTime } from '../utils/format';
 
 const NETWORK_BADGE = IS_TESTNET ? '🧪 TESTNET' : '🔴 MAINNET';
+
+/**
+ * Main persistent menu keyboard
+ */
+const MAIN_MENU = new Keyboard()
+    .text('💰 账户余额').text('📊 当前持仓').row()
+    .text('📈 涨幅榜').text('📉 跌幅榜').text('🌊 振幅榜').row()
+    .text('📋 我的挂单').text('❓ 帮助').row()
+    .resized();
 
 export function registerCommands(bot: Bot): void {
     bot.command('start', async (ctx) => {
         const welcome = [
             `🤖 *Binance Futures Bot* (${NETWORK_BADGE})`,
             '',
+            '已为你加载主菜单，点击下方按钮即可快速查询。',
+            '',
             '📊 *查询命令*',
             '/balance — 账户余额',
             '/positions — 当前持仓',
-            '/price `BTCUSDT` — 查看价格',
-            '/funding `BTCUSDT` — 资金费率',
-            '/gainers — 涨幅前十',
-            '/losers — 跌幅前十',
+            '/gainers — 涨幅榜',
+            '/losers — 跌幅榜',
+            '/amplitude — 振幅榜',
             '/orders — 当前挂单',
             '',
             '📈 *交易命令*',
-            '/long `BTCUSDT` `0.01` (或 `100u`) — 市价做多',
-            '/long `BTCUSDT` `100u` `60000` — 限价做多',
-            '/short `BTCUSDT` `100u` — 市价做空',
+            '/long `BTCUSDT` `0.01` (或 `100u`) — 做多',
+            '/short `BTCUSDT` `100u` — 做空',
             '/close `BTCUSDT` — 市价平仓',
-            '/tp `BTCUSDT` `70000` — 设止盈',
-            '/sl `BTCUSDT` `55000` — 设止损',
-            '',
-            '⚙️ *管理命令*',
-            '/cancel `BTCUSDT` `12345` — 撤单',
-            '/cancelall `BTCUSDT` — 撤全部挂单',
-            '/leverage `BTCUSDT` `10` — 设杠杆',
-            '/margin `BTCUSDT` `cross` — 设保证金模式',
         ];
-        await ctx.reply(welcome.join('\n'), { parse_mode: 'Markdown' });
+        await ctx.reply(welcome.join('\n'), { 
+            parse_mode: 'Markdown',
+            reply_markup: MAIN_MENU
+        });
     });
 
-    bot.command('help', async (ctx) => {
-        await ctx.reply('发送 /start 查看所有命令');
+    bot.hears(['❓ 帮助', '/help'], async (ctx) => {
+        await ctx.reply('发送 /start 重新唤起主菜单');
     });
 
     // ─── Account Commands ───
 
-    bot.command('balance', async (ctx) => {
+    bot.hears(['💰 账户余额', '/balance'], async (ctx) => {
         const account = await getAccountInfo();
         const usdt = account.assets?.find(a => a.asset === 'USDT');
         const lines = [
@@ -61,7 +65,7 @@ export function registerCommands(bot: Bot): void {
         await ctx.reply(lines.join('\n'), { parse_mode: 'Markdown' });
     });
 
-    bot.command('positions', async (ctx) => {
+    bot.hears(['📊 当前持仓', '/positions'], async (ctx) => {
         const positions = await getPositions();
         if (positions.length === 0) {
             await ctx.reply('📭 当前无持仓');
@@ -119,7 +123,7 @@ export function registerCommands(bot: Bot): void {
         await ctx.reply(lines.join('\n'), { parse_mode: 'Markdown' });
     });
 
-    bot.command('gainers', async (ctx) => {
+    bot.hears(['📈 涨幅榜', '/gainers'], async (ctx) => {
         try {
             const limit = 10;
             // First time of the day this is called, it may take 1-2 seconds to cache UTC0 open prices
@@ -139,7 +143,7 @@ export function registerCommands(bot: Bot): void {
         }
     });
 
-    bot.command('losers', async (ctx) => {
+    bot.hears(['📉 跌幅榜', '/losers'], async (ctx) => {
         try {
             const limit = 10;
             const topLosers = await getTopLosers(limit, true);
@@ -155,6 +159,24 @@ export function registerCommands(bot: Bot): void {
             await ctx.reply(lines.join('\n'), { parse_mode: 'Markdown' });
         } catch (err: any) {
             await ctx.reply(`❌ 获取跌幅榜失败: ${err.message}`);
+        }
+    });
+
+    bot.hears(['🌊 振幅榜', '/amplitude'], async (ctx) => {
+        try {
+            const limit = 10;
+            const topAmplitude = await getTopAmplitude(limit, true);
+
+            const lines = [`🌊 *今日振幅前 ${limit} (UTC0)* (${NETWORK_BADGE})\n`];
+            for (let i = 0; i < topAmplitude.length; i++) {
+                const a = topAmplitude[i];
+                const pct = parseFloat(a.amplitudePercent);
+                lines.push(`*${i + 1}.* \`${a.symbol}\`: ${formatPrice(parseFloat(a.lastPrice))} (振幅: ${pct.toFixed(2)}%)`);
+            }
+
+            await ctx.reply(lines.join('\n'), { parse_mode: 'Markdown' });
+        } catch (err: any) {
+            await ctx.reply(`❌ 获取振幅榜失败: ${err.message}`);
         }
     });
 
@@ -290,7 +312,7 @@ export function registerCommands(bot: Bot): void {
 
     // ─── Order Management ───
 
-    bot.command('orders', async (ctx) => {
+    bot.hears(['📋 我的挂单', '/orders'], async (ctx) => {
         const symbol = ctx.match?.toUpperCase() || undefined;
         const orders = await getOpenOrders(symbol);
         if (orders.length === 0) {

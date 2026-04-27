@@ -1,0 +1,143 @@
+# Clash Meta 完整配置示例 - GFWList 黑名单模式 + VLESS Reality
+# 日期参考：2026年3月
+# 客户端：Clash Meta / Mihomo / Clash Verge Rev 等
+
+port: 7890                  # HTTP 代理端口
+socks-port: 7891            # SOCKS5 代理端口
+mixed-port: 7892            # 混合端口（推荐 Clash Verge 用这个）
+allow-lan: true
+mode: rule
+log-level: info
+external-controller: 127.0.0.1:9090
+secret: ""                  # 可选，留空或设置密码
+ipv6: false                 # 根据需要开启
+
+
+# 你的 VLESS Reality 节点（从你之前提供的信息）
+proxies:
+  - name: VLESS_R_43.133.184.52
+    type: vless
+    server: 43.163.238.115
+    port: 13897
+    uuid: 17a55a35-3c0d-3bb9-846b-5f9e224a926a
+    network: tcp
+    udp: true
+    tls: true
+    servername: learn.microsoft.com
+    flow: xtls-rprx-vision
+    client-fingerprint: chrome
+    reality-opts:
+      public-key: UrRuOy8KyAu037V3AW4xF-SA6QgItjk5j1tP5bNosDs
+      short-id: 40c7610106261759
+
+# 如果你有机场订阅，可替换成 proxy-providers（示例已注释）
+# proxy-providers:
+#   myairport:
+#     type: http
+#     url: "你的订阅链接"
+#     path: ./proxies/myairport.yaml
+#     interval: 3600
+#     health-check:
+#       enable: true
+#       url: "https://www.gstatic.com/generate_204"
+#       interval: 300
+
+# 策略组（简单示例：手动选节点 + 自动）
+proxy-groups:
+  - name: PROXY
+    type: select
+    proxies:
+      - VLESS_R_43.133.184.52
+      - DIRECT
+      # 如果有更多节点，从订阅导入后会自动加在这里
+
+  - name: 自动选择
+    type: url-test
+    proxies:
+      - VLESS_R_43.133.184.52
+    url: "http://www.gstatic.com/generate_204"
+    interval: 300
+
+  - name: 绕过大陆
+    type: select
+    proxies:
+      - DIRECT
+      - PROXY
+
+rule-providers:
+  reject:
+    type: http
+    behavior: domain
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt"
+    path: ./ruleset/reject.yaml
+    interval: 86400
+
+  gfw:
+    type: http
+    behavior: domain
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/gfw.txt"
+    path: ./ruleset/gfw.yaml
+    interval: 86400
+
+  proxy:
+    type: http
+    behavior: domain
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt"
+    path: ./ruleset/proxy.yaml
+    interval: 86400
+
+  direct:
+    type: http
+    behavior: domain
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt"
+    path: ./ruleset/direct.yaml
+    interval: 86400
+
+  private:
+    type: http
+    behavior: domain
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/private.txt"
+    path: ./ruleset/private.yaml
+    interval: 86400
+
+  applications:
+    type: http
+    behavior: classical
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/applications.txt"
+    path: ./ruleset/applications.yaml
+    interval: 86400
+
+dns:
+  enable: true
+  listen: 0.0.0.0:53
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  nameserver:
+    - 114.114.114.114
+    - 223.5.5.5
+    - tls://1.1.1.1:853
+  fallback:
+    - tls://8.8.8.8:853
+    - tls://1.0.0.1:853
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+    ipcidr:
+      - 240.0.0.0/4
+
+rules:
+  # 优先级从上到下，越靠上优先级越高
+  - RULE-SET,applications,DIRECT
+  - RULE-SET,private,DIRECT
+  - RULE-SET,reject,REJECT
+  - RULE-SET,gfw,PROXY
+  - RULE-SET,proxy,PROXY
+  - RULE-SET,direct,DIRECT
+  - GEOIP,LAN,DIRECT
+  - GEOIP,CN,DIRECT
+  - MATCH,PROXY           # 兜底全部走代理（最安全）
+  - DOMAIN-SUFFIX,chatgpt.com,PROXY
+  - DOMAIN-SUFFIX,openai.com,PROXY
+  - DOMAIN-SUFFIX,oaistatic.com,PROXY
+  - DOMAIN-SUFFIX,oaiusercontent.com,PROXY
+  - DOMAIN,ab.chatgpt.com,PROXY

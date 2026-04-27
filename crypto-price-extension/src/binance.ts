@@ -1,0 +1,160 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { PriceData } from './api';
+
+const BINANCE_BASE_URL = 'https://api.binance.com';
+
+/**
+ * Convert unified symbol format to Binance format.
+ * 'BTC-USDT' → 'BTCUSDT', 'ETH' → 'ETHUSDT'
+ */
+function toBinanceSymbol(symbol: string): string {
+    if (symbol.includes('-')) {
+        return symbol.replace('-', '');
+    }
+    return `${symbol}USDT`;
+}
+
+/**
+ * Fetch 24h ticker from Binance for a single symbol.
+ * Endpoint: GET /api/v3/ticker/24hr?symbol=BTCUSDT (Spot) or /fapi/v1/ticker/24hr (Futures)
+ */
+async function fetchBinanceTicker(binanceSymbol: string, useFutures = false): Promise<any | null> {
+    const baseUrl = useFutures ? 'https://fapi.binance.com/fapi/v1' : `${BINANCE_BASE_URL}/api/v3`;
+    const url = `${baseUrl}/ticker/24hr?symbol=${binanceSymbol}`;
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            return null;
+        }
+        return await response.json();
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Fetch current funding rate from Binance Futures.
+ * Endpoint: GET /fapi/v1/premiumIndex?symbol=BTCUSDT
+ */
+async function fetchBinanceFundingRate(binanceSymbol: string): Promise<string | undefined> {
+    const url = `https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${binanceSymbol}`;
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            return undefined;
+        }
+        const data: any = await response.json();
+        if (data.lastFundingRate) {
+            return (parseFloat(data.lastFundingRate) * 100).toFixed(4);
+        }
+    } catch { /* ignore */ }
+    return undefined;
+}
+
+/**
+ * Fetch UTC0 daily candle (kline) from Binance.
+ * Uses interval=1d which is anchored at UTC 00:00.
+ * Returns open, high, low for UTC0 change/amplitude calculations.
+ */
+async function fetchBinanceDailyCandleUtc0(binanceSymbol: string, useFutures = false): Promise<{ open: string; high: string; low: string } | null> {
+    const baseUrl = useFutures ? 'https://fapi.binance.com/fapi/v1' : `${BINANCE_BASE_URL}/api/v3`;
+    const url = `${baseUrl}/klines?symbol=${binanceSymbol}&interval=1d&limit=1`;
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            return null;
+        }
+        const data: any = await response.json();
+        if (!Array.isArray(data) || data.length === 0) {
+            return null;
+        }
+        // Kline format: [openTime, open, high, low, close, volume, closeTime, ...]
+        const OPEN_INDEX = 1;
+        const HIGH_INDEX = 2;
+        const LOW_INDEX = 3;
+        const candle = data[0];
+        return { open: candle[OPEN_INDEX], high: candle[HIGH_INDEX], low: candle[LOW_INDEX] };
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Fetch a single crypto symbol from Binance and populate results map.
+ */
+async function fetchBinanceSingleSymbol(
+    symbol: string,
+    results: Map<string, PriceData>,
+): Promise<void> {
+    try {
+        const binanceSymbol = toBinanceSymbol(symbol);
+        let useFutures = false;
+        let ticker = await fetchBinanceTicker(binanceSymbol, false);
+        
+        // If spot fails, try futures
+        if (!ticker || !ticker.lastPrice) {
+            ticker = await fetchBinanceTicker(binanceSymbol, true);
+            if (!ticker || !ticker.lastPrice) {
+                return;
+            }
+            useFutures = true;
+        }
+
+        const last = parseFloat(ticker.lastPrice);
+        const open24h = parseFloat(ticker.openPrice);
+        const change24h = open24h ? ((last - open24h) / open24h * 100).toFixed(2) : '0.00';
+
+        // Fetch UTC0 daily candle for open/high/low
+        const candle = await fetchBinanceDailyCandleUtc0(binanceSymbol, useFutures);
+        const openUtc0 = candle ? parseFloat(candle.open) : 0;
+        const changeUtc0 = openUtc0 ? ((last - openUtc0) / openUtc0 * 100).toFixed(2) : change24h;
+
+        const lowUtc0 = candle?.low || ticker.lowPrice;
+        const highUtc0 = candle?.high || ticker.highPrice;
+        const lowUtc0Num = parseFloat(lowUtc0);
+        const highUtc0Num = parseFloat(highUtc0);
+        const amplitudeUtc0 = (openUtc0 && highUtc0Num > 0 && lowUtc0Num > 0)
+            ? (Math.abs(highUtc0Num - lowUtc0Num) / openUtc0 * 100).toFixed(2)
+            : '0.00';
+
+        // Fetch funding rate
+        const fundingRate = await fetchBinanceFundingRate(binanceSymbol);
+
+        results.set(symbol, {
+            instId: useFutures ? `${binanceSymbol}-PERP` : binanceSymbol,
+            last: last.toString(),
+            open24h: ticker.openPrice,
+            change24h,
+            changeUtc0,
+            low24h: ticker.lowPrice,
+            high24h: ticker.highPrice,
+            lowUtc0,
+            highUtc0,
+            amplitudeUtc0,
+            fundingRate,
+        });
+    } catch (error) {
+        console.error(`[Binance] Failed to fetch price for ${symbol}:`, error);
+    }
+}
+
+const MAX_BINANCE_BATCH = 3;
+const BINANCE_BATCH_DELAY_MS = 300;
+
+/**
+ * Fetch crypto prices from Binance for a list of symbols.
+ * Only handles crypto symbols, not stocks.
+ */
+export async function fetchBinancePrices(
+    cryptoSymbols: string[],
+    results: Map<string, PriceData>,
+): Promise<void> {
+    for (let i = 0; i < cryptoSymbols.length; i += MAX_BINANCE_BATCH) {
+        const batch = cryptoSymbols.slice(i, i + MAX_BINANCE_BATCH);
+        await Promise.all(batch.map(sym => fetchBinanceSingleSymbol(sym, results)));
+
+        const hasMoreBatches = i + MAX_BINANCE_BATCH < cryptoSymbols.length;
+        if (hasMoreBatches) {
+            await new Promise(resolve => setTimeout(resolve, BINANCE_BATCH_DELAY_MS));
+        }
+    }
