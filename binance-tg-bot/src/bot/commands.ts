@@ -313,7 +313,8 @@ export function registerCommands(bot: Bot): void {
     // ─── Order Management ───
 
     bot.hears(['📋 我的挂单', '/orders'], async (ctx) => {
-        const symbol = ctx.match?.toUpperCase() || undefined;
+        const match = ctx.match;
+        const symbol = (typeof match === 'string' && !['📋 我的挂单', '/orders'].includes(match)) ? match.toUpperCase() : undefined;
         const orders = await getOpenOrders(symbol);
         if (orders.length === 0) {
             await ctx.reply('📭 当前无挂单');
