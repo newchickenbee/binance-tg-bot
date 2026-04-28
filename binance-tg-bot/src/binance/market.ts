@@ -204,7 +204,8 @@ export async function getTopAmplitude(limit: number = 10, useUtc0: boolean = fal
             .map(t => {
                 const high = parseFloat(t.highPrice);
                 const low = parseFloat(t.lowPrice);
-                const amplitude = low > 0 ? ((high - low) / low) * 100 : 0;
+                const open = parseFloat(t.openPrice);
+                const amplitude = open > 0 ? ((high - low) / open) * 100 : 0;
                 return {
                     symbol: t.symbol,
                     amplitudePercent: amplitude.toString(),
@@ -233,8 +234,8 @@ export async function getTopAmplitude(limit: number = 10, useUtc0: boolean = fal
         if (kline) {
             high = Math.max(kline.high, lastPrice);
             low = Math.min(kline.low, lastPrice);
-            if (low > 0) {
-                amplitude = ((high - low) / low) * 100;
+            if (kline.open > 0) {
+                amplitude = ((high - low) / kline.open) * 100;
             }
         }
         return {
