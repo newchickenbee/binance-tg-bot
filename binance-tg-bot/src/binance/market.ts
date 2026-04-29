@@ -102,14 +102,14 @@ export async function calcQuantityByUSDT(symbol: string, usdtAmount: number, pri
     return rawQuantity;
 }
 
-const klineCache: { date: string; data: Record<string, { open: number; high: number; low: number }> } = {
+const klineCache: { date: string; data: Record<string, { open: number; high: number; low: number; quoteVolume: number }> } = {
     date: '',
     data: {},
 };
 
 async function updateKlineCache(symbols: string[], today: string) {
     if (klineCache.date !== today || Object.keys(klineCache.data).length < symbols.length * 0.9) {
-        const dataMap: Record<string, { open: number; high: number; low: number }> = {};
+        const dataMap: Record<string, { open: number; high: number; low: number; quoteVolume: number }> = {};
         const chunkSize = 50;
         for (let i = 0; i < symbols.length; i += chunkSize) {
             const chunk = symbols.slice(i, i + chunkSize);
@@ -121,6 +121,7 @@ async function updateKlineCache(symbols: string[], today: string) {
                             open: parseFloat(data[0][1]),
                             high: parseFloat(data[0][2]),
                             low: parseFloat(data[0][3]),
+                            quoteVolume: parseFloat(data[0][7]),
                         };
                     }
                 } catch (err) {
@@ -160,9 +161,11 @@ async function getUsdtTickers24hr(limit: number, useUtc0: boolean, direction: So
         const kline = klineCache.data[t.symbol];
         let percent = 0;
         let change = 0;
+        let quoteVolume = parseFloat(t.quoteVolume);
         if (kline && kline.open > 0) {
             change = lastPrice - kline.open;
             percent = (change / kline.open) * 100;
+            quoteVolume = kline.quoteVolume;
         }
         return {
             symbol: t.symbol,
@@ -170,7 +173,7 @@ async function getUsdtTickers24hr(limit: number, useUtc0: boolean, direction: So
             priceChange: change.toString(),
             priceChangePercent: percent.toString(),
             volume: t.volume,
-            quoteVolume: t.quoteVolume,
+            quoteVolume: quoteVolume.toString(),
         };
     });
 
@@ -233,12 +236,14 @@ export async function getTopAmplitude(limit: number = 10, useUtc0: boolean = fal
         let amplitude = 0;
         let high = lastPrice;
         let low = lastPrice;
+        let quoteVolume = parseFloat(t.quoteVolume);
         if (kline) {
             high = Math.max(kline.high, lastPrice);
             low = Math.min(kline.low, lastPrice);
             if (kline.open > 0) {
                 amplitude = ((high - low) / kline.open) * 100;
             }
+            quoteVolume = kline.quoteVolume;
         }
         return {
             symbol: t.symbol,
