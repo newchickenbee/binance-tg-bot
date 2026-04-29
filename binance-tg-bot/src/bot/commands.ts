@@ -3,7 +3,7 @@ import { IS_TESTNET } from '../config';
 import { getAccountInfo, getPositions, setLeverage, setMarginType } from '../binance/account';
 import { placeOrder, cancelOrder, cancelAllOrders, getOpenOrders } from '../binance/order';
 import { getPrice, getFundingRate, getTopGainers, getTopLosers, getTopAmplitude, calcQuantityByUSDT } from '../binance/market';
-import { formatPrice, formatUSDT, pnlEmoji, formatPct, formatTime } from '../utils/format';
+import { formatPrice, formatUSDT, pnlEmoji, formatPct, formatTime, formatVolume } from '../utils/format';
 
 const NETWORK_BADGE = IS_TESTNET ? '🧪 TESTNET' : '🔴 MAINNET';
 
@@ -134,7 +134,7 @@ export function registerCommands(bot: Bot): void {
                 const g = topGainers[i];
                 const pct = parseFloat(g.priceChangePercent);
                 const pctStr = pct >= 0 ? `+${pct.toFixed(2)}%` : `${pct.toFixed(2)}%`;
-                lines.push(`*${i + 1}.* \`${g.symbol}\`: ${formatPrice(parseFloat(g.lastPrice))} (${pctStr})`);
+                lines.push(`*${i + 1}.* \`${g.symbol}\`: ${formatPrice(parseFloat(g.lastPrice))} (${pctStr}) | 量: ${formatVolume(g.quoteVolume)}`);
             }
 
             await ctx.reply(lines.join('\n'), { parse_mode: 'Markdown' });
@@ -153,7 +153,7 @@ export function registerCommands(bot: Bot): void {
                 const t = topLosers[i];
                 const pct = parseFloat(t.priceChangePercent);
                 const pctStr = pct >= 0 ? `+${pct.toFixed(2)}%` : `${pct.toFixed(2)}%`;
-                lines.push(`*${i + 1}.* \`${t.symbol}\`: ${formatPrice(parseFloat(t.lastPrice))} (${pctStr})`);
+                lines.push(`*${i + 1}.* \`${t.symbol}\`: ${formatPrice(parseFloat(t.lastPrice))} (${pctStr}) | 量: ${formatVolume(t.quoteVolume)}`);
             }
 
             await ctx.reply(lines.join('\n'), { parse_mode: 'Markdown' });
@@ -171,7 +171,7 @@ export function registerCommands(bot: Bot): void {
             for (let i = 0; i < topAmplitude.length; i++) {
                 const a = topAmplitude[i];
                 const pct = parseFloat(a.amplitudePercent);
-                lines.push(`*${i + 1}.* \`${a.symbol}\`: ${formatPrice(parseFloat(a.lastPrice))} (振幅: ${pct.toFixed(2)}%)`);
+                lines.push(`*${i + 1}.* \`${a.symbol}\`: ${formatPrice(parseFloat(a.lastPrice))} (振幅: ${pct.toFixed(2)}%) | 量: ${formatVolume(a.quoteVolume)}`);
             }
 
             await ctx.reply(lines.join('\n'), { parse_mode: 'Markdown' });

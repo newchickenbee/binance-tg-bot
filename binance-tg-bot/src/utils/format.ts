@@ -44,3 +44,17 @@ export function formatPct(value: number): string {
 export function formatTime(ms: number): string {
     return new Date(ms).toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
 }
+
+/**
+ * Format volume with compact notation (e.g., 1.2M, 300K).
+ */
+export function formatVolume(value: number | string): string {
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(num) || num === 0) return '0';
+    return new Intl.NumberFormat('en-US', {
+        notation: 'compact',
+        compactDisplay: 'short',
+        maximumFractionDigits: 1
+    }).format(num);
+}
+

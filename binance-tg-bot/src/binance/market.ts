@@ -147,8 +147,8 @@ async function getUsdtTickers24hr(limit: number, useUtc0: boolean, direction: So
             .slice(0, limit);
     }
 
-    const currentPricesList = await publicRequest<PriceTicker[]>('/fapi/v1/ticker/price');
-    const validTickers = currentPricesList.filter(t => t.symbol.endsWith('USDT') && !t.symbol.includes('_'));
+    const ticker24hrList = await publicRequest<Ticker24hr[]>('/fapi/v1/ticker/24hr');
+    const validTickers = ticker24hrList.filter(t => t.symbol.endsWith('USDT') && !t.symbol.includes('_'));
 
     const symbols = validTickers.map(t => t.symbol);
     const today = new Date().toISOString().split('T')[0];
@@ -156,7 +156,7 @@ async function getUsdtTickers24hr(limit: number, useUtc0: boolean, direction: So
     await updateKlineCache(symbols, today);
 
     const tickersWithChange = validTickers.map(t => {
-        const lastPrice = parseFloat(t.price);
+        const lastPrice = parseFloat(t.lastPrice);
         const kline = klineCache.data[t.symbol];
         let percent = 0;
         let change = 0;
@@ -166,11 +166,11 @@ async function getUsdtTickers24hr(limit: number, useUtc0: boolean, direction: So
         }
         return {
             symbol: t.symbol,
-            lastPrice: t.price,
+            lastPrice: t.lastPrice,
             priceChange: change.toString(),
             priceChangePercent: percent.toString(),
-            volume: '0',
-            quoteVolume: '0',
+            volume: t.volume,
+            quoteVolume: t.quoteVolume,
         };
     });
 
@@ -194,6 +194,7 @@ export interface AmplitudeTicker {
     lastPrice: string;
     highPrice: string;
     lowPrice: string;
+    quoteVolume: string;
 }
 
 export async function getTopAmplitude(limit: number = 10, useUtc0: boolean = false): Promise<AmplitudeTicker[]> {
@@ -212,21 +213,22 @@ export async function getTopAmplitude(limit: number = 10, useUtc0: boolean = fal
                     lastPrice: t.lastPrice,
                     highPrice: t.highPrice,
                     lowPrice: t.lowPrice,
+                    quoteVolume: t.quoteVolume,
                 };
             })
             .sort((a, b) => parseFloat(b.amplitudePercent) - parseFloat(a.amplitudePercent))
             .slice(0, limit);
     }
 
-    const currentPricesList = await publicRequest<PriceTicker[]>('/fapi/v1/ticker/price');
-    const validTickers = currentPricesList.filter(t => t.symbol.endsWith('USDT') && !t.symbol.includes('_'));
+    const ticker24hrList = await publicRequest<Ticker24hr[]>('/fapi/v1/ticker/24hr');
+    const validTickers = ticker24hrList.filter(t => t.symbol.endsWith('USDT') && !t.symbol.includes('_'));
     const symbols = validTickers.map(t => t.symbol);
     const today = new Date().toISOString().split('T')[0];
 
     await updateKlineCache(symbols, today);
 
     const tickersWithAmplitude = validTickers.map(t => {
-        const lastPrice = parseFloat(t.price);
+        const lastPrice = parseFloat(t.lastPrice);
         const kline = klineCache.data[t.symbol];
         let amplitude = 0;
         let high = lastPrice;
@@ -241,9 +243,10 @@ export async function getTopAmplitude(limit: number = 10, useUtc0: boolean = fal
         return {
             symbol: t.symbol,
             amplitudePercent: amplitude.toString(),
-            lastPrice: t.price,
+            lastPrice: t.lastPrice,
             highPrice: high.toString(),
             lowPrice: low.toString(),
+            quoteVolume: t.quoteVolume,
         };
     });
 
@@ -275,13 +278,16 @@ export async function getDailySummary(limit: number = 10): Promise<{ gainers: Ti
                     const change = close - open;
                     const percent = (change / open) * 100;
 
+                    const volume = data[0][5];
+                    const quoteVolume = data[0][7];
+
                     results.push({
                         symbol,
                         lastPrice: close.toString(),
                         priceChange: change.toString(),
                         priceChangePercent: percent.toString(),
-                        volume: '0',
-                        quoteVolume: '0',
+                        volume: volume.toString(),
+                        quoteVolume: quoteVolume.toString(),
                     });
                 }
             } catch (err) {

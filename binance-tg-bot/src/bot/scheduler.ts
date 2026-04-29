@@ -2,7 +2,7 @@ import cron from 'node-cron';
 import { Bot } from 'grammy';
 import { getDailySummary } from '../binance/market';
 import { ALLOWED_USER_IDS, IS_TESTNET } from '../config';
-import { formatPrice } from '../utils/format';
+import { formatPrice, formatVolume } from '../utils/format';
 import * as fs from 'fs/promises';
 import path from 'path';
 
@@ -45,14 +45,14 @@ export function setupScheduler(bot: Bot) {
 
             gainers.forEach((g, i) => {
                 const pct = parseFloat(g.priceChangePercent);
-                lines.push(`${i + 1}. \`${g.symbol}\`: ${formatPrice(parseFloat(g.lastPrice))} (+${pct.toFixed(2)}%)`);
+                lines.push(`${i + 1}. \`${g.symbol}\`: ${formatPrice(parseFloat(g.lastPrice))} (+${pct.toFixed(2)}%) | 量: ${formatVolume(g.quoteVolume)}`);
             });
 
             lines.push('', '📉 *跌幅前十*');
 
             losers.forEach((l, i) => {
                 const pct = parseFloat(l.priceChangePercent);
-                lines.push(`${i + 1}. \`${l.symbol}\`: ${formatPrice(parseFloat(l.lastPrice))} (${pct.toFixed(2)}%)`);
+                lines.push(`${i + 1}. \`${l.symbol}\`: ${formatPrice(parseFloat(l.lastPrice))} (${pct.toFixed(2)}%) | 量: ${formatVolume(l.quoteVolume)}`);
             });
 
             const message = lines.join('\n');
