@@ -102,15 +102,15 @@ async function fetchBinanceDailyCandleUtc0(binanceSymbol, useFutures = false) {
 async function fetchBinanceSingleSymbol(symbol, results) {
     try {
         const binanceSymbol = toBinanceSymbol(symbol);
-        let useFutures = false;
-        let ticker = await fetchBinanceTicker(binanceSymbol, false);
-        // If spot fails, try futures
+        let ticker = await fetchBinanceTicker(binanceSymbol, true); // Try futures first
+        let useFutures = true;
+        // If futures fails (e.g. symbol doesn't exist on futures), try spot
         if (!ticker || !ticker.lastPrice) {
-            ticker = await fetchBinanceTicker(binanceSymbol, true);
+            ticker = await fetchBinanceTicker(binanceSymbol, false);
             if (!ticker || !ticker.lastPrice) {
                 return;
             }
-            useFutures = true;
+            useFutures = false;
         }
         const last = parseFloat(ticker.lastPrice);
         const open24h = parseFloat(ticker.openPrice);
