@@ -52,6 +52,25 @@ async function fetchBinanceFundingRate(binanceSymbol: string): Promise<string | 
 }
 
 /**
+ * Fetch current open interest from Binance Futures.
+ * Endpoint: GET /fapi/v1/openInterest?symbol=BTCUSDT
+ */
+async function fetchBinanceOpenInterest(binanceSymbol: string): Promise<string | undefined> {
+    const url = `https://fapi.binance.com/fapi/v1/openInterest?symbol=${binanceSymbol}`;
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            return undefined;
+        }
+        const data: any = await response.json();
+        if (data.openInterest) {
+            return data.openInterest;
+        }
+    } catch { /* ignore */ }
+    return undefined;
+}
+
+/**
  * Fetch UTC0 daily candle (kline) from Binance.
  * Uses interval=1d which is anchored at UTC 00:00.
  * Returns open, high, low for UTC0 change/amplitude calculations.
@@ -120,6 +139,12 @@ async function fetchBinanceSingleSymbol(
         // Fetch funding rate
         const fundingRate = await fetchBinanceFundingRate(binanceSymbol);
 
+        // Fetch open interest if futures
+        let openInterest: string | undefined;
+        if (useFutures) {
+            openInterest = await fetchBinanceOpenInterest(binanceSymbol);
+        }
+
         results.set(symbol, {
             instId: useFutures ? `${binanceSymbol}-PERP` : binanceSymbol,
             last: last.toString(),
@@ -132,6 +157,7 @@ async function fetchBinanceSingleSymbol(
             highUtc0,
             amplitudeUtc0,
             fundingRate,
+            openInterest,
         });
     } catch (error) {
         console.error(`[Binance] Failed to fetch price for ${symbol}:`, error);
@@ -158,3 +184,5 @@ export async function fetchBinancePrices(
             await new Promise(resolve => setTimeout(resolve, BINANCE_BATCH_DELAY_MS));
         }
     }
+}
+

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { fetchPrices, isStockSymbol } from './api';
-import { formatCryptoPrice } from './utils';
+import { formatCryptoPrice, formatVolume } from './utils';
 
 let priceStatusBarItem: vscode.StatusBarItem;
 let toggleStatusBarItem: vscode.StatusBarItem;
@@ -148,8 +148,8 @@ async function updatePrice() {
         const md = new vscode.MarkdownString();
         md.isTrusted = true;
         md.appendMarkdown(`### Market Watch List\n\n`);
-        md.appendMarkdown(`| Symbol | Price | UTC0 Change | Amplitude | UTC0 Low | UTC0 High | Funding Rate |\n`);
-        md.appendMarkdown(`|:---|:---|:---|:---|:---|:---|:---|\n`);
+        md.appendMarkdown(`| Symbol | Price | UTC0 Change | Amplitude | Open Interest | UTC0 Low | UTC0 High | Funding Rate |\n`);
+        md.appendMarkdown(`|:---|:---|:---|:---|:---|:---|:---|:---|\n`);
 
         displaySymbols.forEach((sym: string) => {
             const data = prices.get(sym);
@@ -171,7 +171,8 @@ async function updatePrice() {
 
                 const funding = data.fundingRate ? `${parseFloat(data.fundingRate).toString()}%` : '-';
 
-                md.appendMarkdown(`| ${indicator} ${boldName} | ${prefix}${priceStr} | ${data.changeUtc0}% | ${amplitude} | ${prefix}${lowUtc0} | ${prefix}${highUtc0} | ${funding} |\n`);
+                const openInterest = formatVolume(data.openInterest);
+                md.appendMarkdown(`| ${indicator} ${boldName} | ${prefix}${priceStr} | ${data.changeUtc0}% | ${amplitude} | ${openInterest} | ${prefix}${lowUtc0} | ${prefix}${highUtc0} | ${funding} |\n`);
             } else {
                 md.appendMarkdown(`| ${sym} | Error | - | - | - | - |\n`);
             }
