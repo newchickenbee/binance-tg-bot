@@ -50,6 +50,25 @@ async function fetchBinanceFundingRate(binanceSymbol) {
     return undefined;
 }
 /**
+ * Fetch current open interest from Binance Futures.
+ * Endpoint: GET /fapi/v1/openInterest?symbol=BTCUSDT
+ */
+async function fetchBinanceOpenInterest(binanceSymbol) {
+    const url = `https://fapi.binance.com/fapi/v1/openInterest?symbol=${binanceSymbol}`;
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            return undefined;
+        }
+        const data = await response.json();
+        if (data.openInterest) {
+            return data.openInterest;
+        }
+    }
+    catch { /* ignore */ }
+    return undefined;
+}
+/**
  * Fetch UTC0 daily candle (kline) from Binance.
  * Uses interval=1d which is anchored at UTC 00:00.
  * Returns open, high, low for UTC0 change/amplitude calculations.
@@ -109,6 +128,14 @@ async function fetchBinanceSingleSymbol(symbol, results) {
             : '0.00';
         // Fetch funding rate
         const fundingRate = await fetchBinanceFundingRate(binanceSymbol);
+        // Fetch open interest if futures
+        let openInterest;
+        if (useFutures) {
+            const oiQuantity = await fetchBinanceOpenInterest(binanceSymbol);
+            if (oiQuantity) {
+                openInterest = (parseFloat(oiQuantity) * last).toString();
+            }
+        }
         results.set(symbol, {
             instId: useFutures ? `${binanceSymbol}-PERP` : binanceSymbol,
             last: last.toString(),
@@ -121,6 +148,7 @@ async function fetchBinanceSingleSymbol(symbol, results) {
             highUtc0,
             amplitudeUtc0,
             fundingRate,
+            openInterest,
         });
     }
     catch (error) {

@@ -37,3 +37,20 @@ export function formatCryptoPrice(value: number | string): string {
     maximumSignificantDigits: 4,
   }).format(numValue);
 }
+export function formatVolume(value: number | string | undefined): string {
+  if (value === undefined) return '-';
+  const numValue = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(numValue)) return '-';
+  
+  if (numValue >= 1.0e9) {
+    return (numValue / 1.0e9).toFixed(2) + 'B';
+  }
+  if (numValue >= 1.0e6) {
+    return (numValue / 1.0e6).toFixed(2) + 'M';
+  }
+  if (numValue >= 1.0e3) {
+    return (numValue / 1.0e3).toFixed(2) + 'K';
+  }
+  return numValue.toFixed(2);
+}
+

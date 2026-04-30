@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.formatCryptoPrice = formatCryptoPrice;
+exports.formatVolume = formatVolume;
 /**
  * 智能格式化多位小数（特别适合加密货币价格）
  * - 大于等于 1000 的数字保留 2 位小数
@@ -34,5 +35,22 @@ function formatCryptoPrice(value) {
     return new Intl.NumberFormat('en-US', {
         maximumSignificantDigits: 4,
     }).format(numValue);
+}
+function formatVolume(value) {
+    if (value === undefined)
+        return '-';
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(numValue))
+        return '-';
+    if (numValue >= 1.0e9) {
+        return (numValue / 1.0e9).toFixed(2) + 'B';
+    }
+    if (numValue >= 1.0e6) {
+        return (numValue / 1.0e6).toFixed(2) + 'M';
+    }
+    if (numValue >= 1.0e3) {
+        return (numValue / 1.0e3).toFixed(2) + 'K';
+    }
+    return numValue.toFixed(2);
 }
 //# sourceMappingURL=utils.js.map

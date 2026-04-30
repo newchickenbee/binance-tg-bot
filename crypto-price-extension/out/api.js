@@ -134,6 +134,7 @@ async function fetchSingleSymbol(symbol, results) {
             highUtc0: candleUtc0?.high || '0',
             amplitudeUtc0,
             fundingRate,
+            openInterest: ticker.openInterest,
         });
     }
     catch (error) {
@@ -206,27 +207,27 @@ async function fetchPrices(symbols) {
             console.error(`Failed to fetch stock prices:`, error);
         }
     }
-    // Fetch crypto: OKX first, then Binance fallback for missing symbols
+    // Fetch crypto: Binance first, then OKX fallback, then Hyperliquid fallback
     if (cryptoSymbols.length > 0) {
-        // Step 1: Try OKX for all crypto symbols
-        for (let i = 0; i < cryptoSymbols.length; i += MAX_SYMBOLS_PER_BATCH) {
-            const batch = cryptoSymbols.slice(i, i + MAX_SYMBOLS_PER_BATCH);
-            await Promise.all(batch.map(sym => fetchSingleSymbol(sym, results)));
-            const hasMoreBatches = i + MAX_SYMBOLS_PER_BATCH < cryptoSymbols.length;
-            if (hasMoreBatches) {
-                await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
-            }
-        }
-        // Step 2: Fallback to Binance for symbols OKX couldn't resolve
+        // Step 1: Try Binance for all crypto symbols
+        await (0, binance_1.fetchBinancePrices)(cryptoSymbols, results);
+        // Step 2: Fallback to OKX for symbols Binance couldn't resolve
         let missingSymbols = cryptoSymbols.filter(sym => !results.has(sym));
         if (missingSymbols.length > 0) {
-            console.log(`[Fallback] OKX missed ${missingSymbols.length} symbol(s), trying Binance: ${missingSymbols.join(', ')}`);
-            await (0, binance_1.fetchBinancePrices)(missingSymbols, results);
+            console.log(`[Fallback] Binance missed ${missingSymbols.length} symbol(s), trying OKX: ${missingSymbols.join(', ')}`);
+            for (let i = 0; i < missingSymbols.length; i += MAX_SYMBOLS_PER_BATCH) {
+                const batch = missingSymbols.slice(i, i + MAX_SYMBOLS_PER_BATCH);
+                await Promise.all(batch.map(sym => fetchSingleSymbol(sym, results)));
+                const hasMoreBatches = i + MAX_SYMBOLS_PER_BATCH < missingSymbols.length;
+                if (hasMoreBatches) {
+                    await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+                }
+            }
         }
-        // Step 3: Fallback to Hyperliquid for symbols Binance couldn't resolve
+        // Step 3: Fallback to Hyperliquid for symbols OKX couldn't resolve
         missingSymbols = cryptoSymbols.filter(sym => !results.has(sym));
         if (missingSymbols.length > 0) {
-            console.log(`[Fallback] Binance missed ${missingSymbols.length} symbol(s), trying Hyperliquid: ${missingSymbols.join(', ')}`);
+            console.log(`[Fallback] OKX missed ${missingSymbols.length} symbol(s), trying Hyperliquid: ${missingSymbols.join(', ')}`);
             await (0, hyperliquid_1.fetchHyperliquidPrices)(missingSymbols, results);
         }
     }

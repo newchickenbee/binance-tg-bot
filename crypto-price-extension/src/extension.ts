@@ -171,7 +171,7 @@ async function updatePrice() {
 
                 const funding = data.fundingRate ? `${parseFloat(data.fundingRate).toString()}%` : '-';
 
-                const openInterest = formatVolume(data.openInterest);
+                const openInterest = data.openInterest ? `$${formatVolume(data.openInterest)}` : '-';
                 md.appendMarkdown(`| ${indicator} ${boldName} | ${prefix}${priceStr} | ${data.changeUtc0}% | ${amplitude} | ${openInterest} | ${prefix}${lowUtc0} | ${prefix}${highUtc0} | ${funding} |\n`);
             } else {
                 md.appendMarkdown(`| ${sym} | Error | - | - | - | - |\n`);

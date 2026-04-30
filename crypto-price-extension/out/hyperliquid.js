@@ -67,6 +67,7 @@ async function fetchHyperliquidPrices(symbols, results) {
                     highUtc0: '0',
                     amplitudeUtc0,
                     fundingRate,
+                    openInterest: ctx.openInterest ? (parseFloat(ctx.openInterest) * last).toString() : undefined,
                 });
             }
         }

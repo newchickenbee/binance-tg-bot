@@ -159,8 +159,8 @@ async function updatePrice() {
         const md = new vscode.MarkdownString();
         md.isTrusted = true;
         md.appendMarkdown(`### Market Watch List\n\n`);
-        md.appendMarkdown(`| Symbol | Price | UTC0 Change | Amplitude | UTC0 Low | UTC0 High | Funding Rate |\n`);
-        md.appendMarkdown(`|:---|:---|:---|:---|:---|:---|:---|\n`);
+        md.appendMarkdown(`| Symbol | Price | UTC0 Change | Amplitude | Open Interest | UTC0 Low | UTC0 High | Funding Rate |\n`);
+        md.appendMarkdown(`|:---|:---|:---|:---|:---|:---|:---|:---|\n`);
         displaySymbols.forEach((sym) => {
             const data = prices.get(sym);
             if (data) {
@@ -178,7 +178,8 @@ async function updatePrice() {
                     ? (0, utils_1.formatCryptoPrice)(data.highUtc0)
                     : '-';
                 const funding = data.fundingRate ? `${parseFloat(data.fundingRate).toString()}%` : '-';
-                md.appendMarkdown(`| ${indicator} ${boldName} | ${prefix}${priceStr} | ${data.changeUtc0}% | ${amplitude} | ${prefix}${lowUtc0} | ${prefix}${highUtc0} | ${funding} |\n`);
+                const openInterest = data.openInterest ? `$${(0, utils_1.formatVolume)(data.openInterest)}` : '-';
+                md.appendMarkdown(`| ${indicator} ${boldName} | ${prefix}${priceStr} | ${data.changeUtc0}% | ${amplitude} | ${openInterest} | ${prefix}${lowUtc0} | ${prefix}${highUtc0} | ${funding} |\n`);
             }
             else {
                 md.appendMarkdown(`| ${sym} | Error | - | - | - | - |\n`);

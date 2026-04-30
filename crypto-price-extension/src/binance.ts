@@ -142,7 +142,10 @@ async function fetchBinanceSingleSymbol(
         // Fetch open interest if futures
         let openInterest: string | undefined;
         if (useFutures) {
-            openInterest = await fetchBinanceOpenInterest(binanceSymbol);
+            const oiQuantity = await fetchBinanceOpenInterest(binanceSymbol);
+            if (oiQuantity) {
+                openInterest = (parseFloat(oiQuantity) * last).toString();
+            }
         }
 
         results.set(symbol, {
